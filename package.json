@@ -1,8 +1,8 @@
 {
-  "name": "node-js-getting-started",
+  "name": "nodeflyway",
   "version": "1.0.0",
   "private": true,
-  "description": "A sample Node.js app using Express",
+  "description": "A simple goflyway WebSocket relay running on LeanCloud",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -10,8 +10,7 @@
   },
   "dependencies": {
     "leancloud-storage": "^3.0.0",
-    "leanengine": "^3.0.0",
-    "http-proxy": "1.16.2"
+    "leanengine": "^3.0.0"
   },
   "devDependencies": {
     "nodemon": "^1.11.0"

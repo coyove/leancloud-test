@@ -18,55 +18,6 @@ var http   = require('http'),
 
 module.exports = {
   /**
-   * WebSocket requests must have the `GET` method and
-   * the `upgrade:websocket` header
-   *
-   * @param {ClientRequest} Req Request object
-   * @param {Socket} Websocket
-   *
-   * @api private
-   */
-
-  checkMethodAndHeader : function checkMethodAndHeader(req, socket) {
-    if (req.method !== 'GET' || !req.headers.upgrade) {
-      socket.destroy();
-      return true;
-    }
-
-    if (req.headers.upgrade.toLowerCase() !== 'websocket') {
-      socket.destroy();
-      return true;
-    }
-  },
-
-  /**
-   * Sets `x-forwarded-*` headers if specified in config.
-   *
-   * @param {ClientRequest} Req Request object
-   * @param {Socket} Websocket
-   * @param {Object} Options Config object passed to the proxy
-   *
-   * @api private
-   */
-
-  XHeaders : function XHeaders(req, socket, options) {
-    if(!options.xfwd) return;
-
-    var values = {
-      for  : req.connection.remoteAddress || req.socket.remoteAddress,
-      port : common.getPort(req),
-      proto: common.hasEncryptedConnection(req) ? 'wss' : 'ws'
-    };
-
-    ['for', 'port', 'proto'].forEach(function(header) {
-      req.headers['x-forwarded-' + header] =
-        (req.headers['x-forwarded-' + header] || '') +
-        (req.headers['x-forwarded-' + header] ? ',' : '') +
-        values[header];
-    });
-  },
-
-  /**
    * Does the actual proxying. Make the request and upgrade it
    * send the Switching Protocols request and pipe the sockets.
    *
@@ -77,17 +28,25 @@ module.exports = {
    * @api private
    */
   stream : function stream(req, socket, options, head, server, clb) {
-    common.setupSocket(socket);
+    if (req.method !== 'GET' || !req.headers.upgrade) {
+      console.log("invalid method for WebSocket");
+      socket.destroy();
+      return;
+    }
+
+    if (req.headers.upgrade.toLowerCase() !== 'websocket') {
+      console.log("invalid upgrade for WebSocket");
+      socket.destroy();
+      return;
+    }
+
+    socket.setTimeout(0);
+    socket.setNoDelay(true);
+    socket.setKeepAlive(true, 0);
 
     if (head && head.length) socket.unshift(head);
 
-
-    var proxyReq = http.request(
-      common.setupOutgoing(options.ssl || {}, options, req)
-    );
-
-    // Enable developers to modify the proxyReq before headers are sent
-    if (server) { server.emit('proxyReqWs', proxyReq, req, socket, options, head); }
+    var proxyReq = http.request(common.setupOutgoing(req));
 
     // Error Handler
     proxyReq.on('error', onOutgoingError);
@@ -98,11 +57,6 @@ module.exports = {
 
     proxyReq.on('upgrade', function(proxyRes, proxySocket, proxyHead) {
       proxySocket.on('error', onOutgoingError);
-
-      // Allow us to listen when the websocket has completed
-      proxySocket.on('end', function () {
-        server.emit('close', proxyRes, proxySocket, proxyHead);
-      });
 
       // The pipe below will end proxySocket if socket closes cleanly, but not
       // if it errors (eg, vanishes from the net and starts returning
@@ -137,19 +91,12 @@ module.exports = {
       );
 
       proxySocket.pipe(socket).pipe(proxySocket);
-
-      server.emit('open', proxySocket);
-      server.emit('proxySocket', proxySocket);  //DEPRECATED.
     });
 
     return proxyReq.end(); // XXX: CHECK IF THIS IS THIS CORRECT
 
     function onOutgoingError(err) {
-      if (clb) {
-        clb(err, req, socket);
-      } else {
-        server.emit('error', err, req, socket);
-      }
+      console.log(err);
       socket.end();
     }
   }

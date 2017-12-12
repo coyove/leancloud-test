@@ -31,17 +31,17 @@ common.isSSL = isSSL;
  * @api private
  */
 
-common.setupOutgoing = function(outgoing, options, req, forward) {
+common.setupOutgoing = function(req) {
+  var outgoing = {};
   outgoing.method = req.method;
   outgoing.headers = extend({}, req.headers);
   delete outgoing.headers["x-forwarded-url"];
 
   outgoing.agent = false;
   outgoing.headers = outgoing.headers || {};
-  if (typeof outgoing.headers.connection !== 'string'
-      || !upgradeHeader.test(outgoing.headers.connection)
-      ) { outgoing.headers.connection = 'close'; }
-
+  
+  if (typeof outgoing.headers.connection !== 'string' || !upgradeHeader.test(outgoing.headers.connection))
+    outgoing.headers.connection = 'close';
 
   var outgoingPath = req.headers['x-forwarded-url'];
 

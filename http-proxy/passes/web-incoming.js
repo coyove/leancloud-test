@@ -29,11 +29,7 @@ module.exports = {
    */
 
   deleteLength: function deleteLength(req, res, options) {
-    if((req.method === 'DELETE' || req.method === 'OPTIONS')
-       && !req.headers['content-length']) {
-      req.headers['content-length'] = '0';
-      delete req.headers['transfer-encoding'];
-    }
+    
   },
 
   /**
@@ -65,7 +61,12 @@ module.exports = {
    */
 
   stream: function stream(req, res, options, _, server, clb) {
-    var options = common.setupOutgoing(options.ssl || {}, options, req);
+    if ((req.method === 'DELETE' || req.method === 'OPTIONS') && !req.headers['content-length']) {
+      req.headers['content-length'] = '0';
+      delete req.headers['transfer-encoding'];
+    }
+
+    var options = common.setupOutgoing(req);
     if (!("x-forwarded-url" in req.headers)) {
       res.write('Hello World');
       return res.end();
