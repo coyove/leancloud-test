@@ -8,9 +8,12 @@ var http = require('http'), httpProxy = require('./http-proxy.js');
 var proxy = httpProxy.createProxyServer({ changeOrigin: true, ws: true, preserveHeaderKeyCase: true });
 var URL = require('url');
 
-proxy.on
-
 var server = http.createServer(function (req, res) {
+  if (req.path === '/1.1/functions/_ops/metadatas') {
+    res.sendStatus(404);
+    return res.end();
+  }
+
   proxy.web(req, res, {});
 });
 
