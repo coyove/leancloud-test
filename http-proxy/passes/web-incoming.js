@@ -53,36 +53,6 @@ module.exports = {
   },
 
   /**
-   * Sets `x-forwarded-*` headers if specified in config.
-   *
-   * @param {ClientRequest} Req Request object
-   * @param {IncomingMessage} Res Response object
-   * @param {Object} Options Config object passed to the proxy
-   *
-   * @api private
-   */
-
-  XHeaders: function XHeaders(req, res, options) {
-    if(!options.xfwd) return;
-
-    var encrypted = req.isSpdy || common.hasEncryptedConnection(req);
-    var values = {
-      for  : req.connection.remoteAddress || req.socket.remoteAddress,
-      port : common.getPort(req),
-      proto: encrypted ? 'https' : 'http'
-    };
-
-    ['for', 'port', 'proto'].forEach(function(header) {
-      req.headers['x-forwarded-' + header] =
-        (req.headers['x-forwarded-' + header] || '') +
-        (req.headers['x-forwarded-' + header] ? ',' : '') +
-        values[header];
-    });
-
-    req.headers['x-forwarded-host'] = req.headers['host'] || '';
-  },
-
-  /**
    * Does the actual proxying. If `forward` is enabled fires up
    * a ForwardStream, same happens for ProxyStream. The request
    * just dies otherwise.
@@ -95,81 +65,26 @@ module.exports = {
    */
 
   stream: function stream(req, res, options, _, server, clb) {
-
-    // And we begin!
-    server.emit('start', req, res, options.target || options.forward);
-
-    // if (true) {
-    //   // If forward enable, so just pipe the request
-    //   var forwardReq = http.request(
-    //     common.setupOutgoing(options.ssl || {}, options, req, 'forward')
-    //   );
-
-    //   // error handler (e.g. ECONNRESET, ECONNREFUSED)
-    //   // Handle errors on incoming request as well as it makes sense to
-    //   var forwardError = createErrorHandler(forwardReq, options.forward);
-    //   req.on('error', forwardError);
-    //   forwardReq.on('error', forwardError);
-
-    //   (options.buffer || req).pipe(forwardReq);
-    //   return res.end();
-    // }
-
-    // Request initalization
     var options = common.setupOutgoing(options.ssl || {}, options, req);
+    if (!("x-forwarded-url" in req.headers)) {
+      res.write('Hello World');
+      return res.end();
+    }
+
     var proxyReq = http.request(options);
 
-    console.log(options.headers);
     // Enable developers to modify the proxyReq before headers are sent
     proxyReq.on('socket', function(socket) {
-      if(server) { server.emit('proxyReq', proxyReq, req, res, options); }
+      server.emit('proxyReq', proxyReq, req, res, options);
     });
 
-    // allow outgoing socket to timeout so that we could
-    // show an error page at the initial request
-    if(options.proxyTimeout) {
-      proxyReq.setTimeout(options.proxyTimeout, function() {
-         proxyReq.abort();
-      });
-    }
-
-    // Ensure we abort proxy if request is aborted
-    req.on('aborted', function () {
-      proxyReq.abort();
-    });
-
-    // handle errors in proxy and incoming request, just like for forward proxy
-    var proxyError = createErrorHandler(proxyReq, options.target);
-    req.on('error', proxyError);
-    proxyReq.on('error', proxyError);
-
-    function createErrorHandler(proxyReq, url) {
-      return function proxyError(err) {
-        if (req.socket.destroyed && err.code === 'ECONNRESET') {
-          server.emit('econnreset', err, req, res, url);
-          return proxyReq.abort();
-        }
-
-        if (clb) {
-          clb(err, req, res, url);
-        } else {
-          server.emit('error', err, req, res, url);
-        }
-      }
-    }
-
-    (options.buffer || req).pipe(proxyReq);
+    req.pipe(proxyReq);
 
     proxyReq.on('response', function(proxyRes) {
-      if(server) { server.emit('proxyRes', proxyRes, req, res); }
+
       for(var i=0; i < web_o.length; i++) {
         if(web_o[i](req, res, proxyRes, options)) { break; }
       }
-
-      // Allow us to listen when the proxy has completed
-      proxyRes.on('end', function () {
-        server.emit('end', req, res, proxyRes);
-      });
 
       proxyRes.pipe(res);
     });
