@@ -3,6 +3,7 @@ npm-debug.log
 start.sh
 .avoscloud
 .leancloud
+.DS_Store
 
 # VIM
 *~
