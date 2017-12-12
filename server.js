@@ -10,7 +10,7 @@ var URL = require('url');
 
 var server = http.createServer(function (req, res) {
   if (req.url === '/1.1/functions/_ops/metadatas') {
-    res.sendStatus(404);
+    res.writeHead(404, {"Content-Type": "text/plain"});
     return res.end();
   }
 
