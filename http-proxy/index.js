@@ -105,7 +105,7 @@ ProxyServer.prototype.onError = function (err) {
   // so we force people to handle their own errors
   //
   if(this.listeners('error').length === 1) {
-    throw err;
+    console.log(err);
   }
 };
 
